@@ -1,0 +1,11 @@
+/config/.env
+/.venv/
+__pycache__/
+*.py[cod]
+/node_modules/
+!/.env.example
+/docs/
+
+# Archivos locales de npm ajenos al pipeline Python
+/package.json
+/package-lock.json
