@@ -1,55 +1,17 @@
 # Pipeline de extracción técnica
 
-Pre-entrega 2 de AI Engineering. Un pipeline asíncrono recibe un texto técnico y devuelve una extracción validada con Pydantic.
+Este proyecto es mi segunda pre-entrega del curso de AI Engineering. Le paso un texto sobre un incidente técnico y el programa devuelve en JSON las tecnologías que se mencionan, el nivel de criticidad y un resumen corto. Lo hice con Python 3.14, LangChain, Pydantic y OpenAI.
 
-**Tipo** · Pipeline de procesamiento de texto  
-**Stack** · Python 3.14, LangChain, Pydantic 2 y OpenAI
+## Cómo ejecutarlo
 
-## Descripción
-
-La demostración analiza un párrafo sobre una API en FastAPI con demoras en Redis. El resultado contiene las tecnologías mencionadas, la criticidad y un resumen técnico.
-
-## Arquitectura
-
-| Archivo | Responsabilidad |
-|---|---|
-| `schemas.py` | Define el modelo Pydantic `TechnicalExtraction` y la criticidad `baja`, `media` o `alta`. |
-| `chain.py` | Compone el prompt, la salida estructurada y la validación con LCEL. Ejecuta la cadena con `.ainvoke()`. |
-| `main.py` | Hace una demostración asíncrona, habilita los logs e imprime el resultado en JSON. |
-
-`ChatPromptTemplate` separa las instrucciones del texto. `with_structured_output()` usa el esquema Pydantic y conserva el mensaje original para inspeccionar `finish_reason`. Si la respuesta está truncada, falla el parseo o falta un objeto válido, `.with_retry()` vuelve a generar y validar. Con el mismo timeout de red hay hasta tres intentos de extracción, incluida la primera llamada.
-
-La primera consulta usa un timeout de red de 30 segundos. Si vence, el pipeline vuelve a consultar con 45 segundos y, si vuelve a vencer, con 60 segundos. Los reintentos internos del SDK están desactivados. Los valores limitan esperas de red y la extracción completa puede durar más por los reintentos.
-
-El código usa nombres en inglés. Los alias de Pydantic mantienen las claves del JSON de la consigna: `tecnologias`, `nivel_de_criticidad` y `resumen_tecnico`. La criticidad y el resumen se expresan en español.
-
-## Diagrama de flujo
-
-```mermaid
-flowchart LR
-    A[Texto] --> B[ChatPromptTemplate]
-    B --> C[ChatOpenAI con salida estructurada]
-    C --> D[Verificar truncamiento y validar]
-    D --> E[Imprimir JSON]
-```
-
-## Requisitos
-
-- Python **3.14** y `pip`.
-- Una clave de API de OpenAI y acceso al modelo configurado para ejecutar la demostración.
-
-## Instalación
-
-Desde la raíz del proyecto, en PowerShell, crea `.venv` si todavía no existe e instala las dependencias.
+Desde la carpeta del proyecto, en PowerShell, creá un entorno virtual e instalá las dependencias. Si ya tenés `.venv`, podés saltar el primer comando.
 
 ```powershell
 py -3.14 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-## Configuración
-
-Si todavía no tienes un archivo de configuración local, crea la carpeta y copia [`.env.example`](.env.example).
+Copiá [`.env.example`](.env.example) a `config/.env` si todavía no lo creaste.
 
 ```powershell
 New-Item -ItemType Directory -Force config | Out-Null
@@ -58,64 +20,50 @@ if (-not (Test-Path -LiteralPath .\config\.env)) {
 }
 ```
 
-Completa estas variables en `config/.env`.
+Completá `OPENAI_API_KEY` con tu clave y dejá `OPENAI_MODEL=gpt-4o-mini` o indicá otro modelo al que tengas acceso. El archivo `config/.env` queda fuera de Git.
 
-| Variable | Uso |
-|---|---|
-| `OPENAI_API_KEY` | Clave de API de OpenAI. |
-| `OPENAI_MODEL` | Identificador del modelo, por ejemplo `gpt-4o-mini`. |
+## Los dos ejemplos
 
-El pipeline usa las dos variables de OpenAI de la tabla. `config/.env` es local y está excluido de Git.
+Los dos comandos hacen una consulta a OpenAI. El texto del resumen y la criticidad de los ejemplos de salida pueden variar.
 
-## Pruebas
-
-El recorrido de la cadena, los reintentos y la impresión del JSON se verificaron localmente con respuestas simuladas. La demostración de consola usa la API real de OpenAI.
-
-Para probar con un texto ambiguo, ejecuta desde la raíz del proyecto.
-
-```powershell
-.\.venv\Scripts\python.exe main.py --ambiguo
-```
-
-El caso menciona fallos intermitentes con impacto incierto y omite los nombres de los componentes. Comprueba que `tecnologias` sea `[]` y que el resumen conserve la incertidumbre. El modelo elige la criticidad según la evidencia del texto. Pydantic verifica que pertenezca al enum. Si la salida llega truncada o incumple el esquema, los logs permiten seguir los reintentos.
-
-## Uso
-
-Ejecuta desde la raíz del proyecto.
+### 1. Caída del servicio de autenticación
 
 ```powershell
 .\.venv\Scripts\python.exe main.py
 ```
 
-Ejemplo ilustrativo de la salida:
+El texto dice que se cayó el servicio de autenticación y que algunas personas no pudieron iniciar sesión. Se conoce el síntoma y el efecto, aunque todavía no se sabe qué componente falló ni si el problema sigue activo. Como no se nombra ninguna tecnología concreta, se espera una lista vacía. Una criticidad posible es `alta` por la caída del servicio.
 
 ```json
 {
-  "tecnologias": ["FastAPI", "Redis"],
-  "nivel_de_criticidad": "media",
-  "resumen_tecnico": "La API en FastAPI sigue operativa, pero Redis presenta demoras que afectan algunas solicitudes."
+  "tecnologias": [],
+  "nivel_de_criticidad": "alta",
+  "resumen_tecnico": "La caída del servicio de autenticación impidió iniciar sesión a algunas personas, y se desconoce qué componente falló o si el problema sigue activo."
 }
 ```
 
-Los logs muestran el resultado de la validación y el timeout del siguiente intento cuando vence el tiempo de espera de red. Si falla la configuración, se agotan los intentos o el SDK devuelve otro error, la demo registra el motivo y termina con código `1`.
+### 2. Caso ambiguo
 
-## Estructura del proyecto
-
-```text
-.
-├── .env.example
-├── .gitignore
-├── README.md
-├── chain.py
-├── main.py
-├── requirements.txt
-└── schemas.py
+```powershell
+.\.venv\Scripts\python.exe main.py --ambiguo
 ```
 
-## Solución de problemas
+El texto solo dice que algo dejó de responder por un rato. Acá interesa ver si el modelo conserva la incertidumbre. `tecnologias` debería ser `[]` y el resumen debería dejar claro que se desconoce el componente afectado y si el incidente se resolvió. Pydantic comprueba que la criticidad sea `baja`, `media` o `alta`. El valor concreto depende de cómo el modelo interprete el texto.
 
-| Síntoma | Acción |
-|---|---|
-| `ModuleNotFoundError` | Instala `requirements.txt` y ejecuta el script con el Python de `.venv`. |
-| Falta `OPENAI_MODEL` o falla la autenticación | Revisa el modelo y la clave en `config/.env`. |
-| `InvalidOutputError` | Revisa los avisos de truncamiento o validación en los logs. Se agotaron los intentos de extracción. |
+```json
+{
+  "tecnologias": [],
+  "nivel_de_criticidad": "media",
+  "resumen_tecnico": "Se reportó una falla temporal en un componente sin identificar y se desconoce si el problema se resolvió."
+}
+```
+
+## Cómo está armado
+
+- `schemas.py` define los tres campos obligatorios y los valores de criticidad. Dentro de Python los nombres están en inglés. Los alias de Pydantic conservan los nombres en castellano en el JSON.
+- `chain.py` arma el prompt y lo conecta con el modelo y la validación usando LCEL. `process_text()` ejecuta la cadena con `.ainvoke()` y devuelve una extracción validada.
+- `main.py` elige el texto de ejemplo, llama al pipeline e imprime el JSON.
+
+Si la respuesta llega truncada o falla la validación, se vuelve a consultar al modelo hasta un máximo de tres intentos con el mismo timeout. Ante un timeout de red, la siguiente consulta pasa de 30 a 45 segundos y, si vuelve a vencer, a 60. Esos tiempos corresponden a la espera de red. La ejecución completa puede tardar más por los reintentos.
+
+Probé el recorrido y los reintentos con respuestas simuladas. Los logs de la demo muestran qué pasó con la validación y si hubo un reintento.
