@@ -11,11 +11,9 @@ from schemas import TechnicalExtraction
 logger = logging.getLogger(__name__)
 
 FORMAT_INSTRUCTIONS = """
-- tecnologias: listá solo las tecnologías mencionadas en el texto. Si no se menciona ninguna, usá [].
 - nivel_de_criticidad: usá alta si hay una caída o un impacto grave,
   media si hay degradación parcial y baja si es informativo o de bajo impacto.
-- resumen_tecnico: resumí el contexto y el problema en una frase en castellano.
-  Si el texto deja dudas, reflejalas en el resumen.
+- Si el texto deja dudas, reflejalas en el resumen.
 """
 
 # Excepciones controladas

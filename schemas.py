@@ -16,7 +16,7 @@ class TechnicalExtraction(BaseModel):
     )
     technologies: list[str] = Field(
         alias="tecnologias",
-        description="Tecnologías mencionadas en el texto. Usá [] si no se menciona ninguna.",
+        description="Listá solo las tecnologías mencionadas en el texto. Si no se menciona ninguna, usá [].",
     )
     criticality: CriticalityLevel = Field(
         alias="nivel_de_criticidad",
